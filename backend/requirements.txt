@@ -6,6 +6,7 @@ sqlalchemy==2.0.38
 psycopg2-binary==2.9.10
 boto3==1.37.8
 openai==1.66.3
+google-generativeai==0.8.5
 python-multipart==0.0.20
 pytesseract==0.3.10
 pdf2image==1.17.0
