@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PoC EdgeAI Jurídico</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>PoC Edge + Cloud para Documentos Jurídicos</h1>
+      <p>Integração visual: envie PDF/imagem direto ou carregue JSON estruturado.</p>
+
+      <label for="docFile">Fluxo direto (PDF/imagem):</label>
+      <input id="docFile" type="file" accept=".pdf,image/*" />
+      <div class="actions">
+        <button id="processDocBtn">Processar documento completo</button>
+      </div>
+
+      <label for="jsonFile">1) Selecione o arquivo JSON do edge (`data/structured_output.json`):</label>
+      <input id="jsonFile" type="file" accept="application/json,.json" />
+
+      <label for="jsonInput">2) Revise/edite o JSON estruturado:</label>
+      <textarea id="jsonInput" placeholder="Cole aqui o JSON do edge..."></textarea>
+
+      <div class="actions">
+        <button id="analyzeBtn">Analisar no backend (LLM)</button>
+        <span id="status"></span>
+      </div>
+
+      <section>
+        <h2>Resumo jurídico</h2>
+        <p id="summaryOutput">-</p>
+      </section>
+
+      <section>
+        <h2>Possíveis riscos</h2>
+        <ul id="risksOutput"></ul>
+      </section>
+
+      <section>
+        <h2>Explicação simplificada</h2>
+        <p id="simpleOutput">-</p>
+      </section>
+
+      <section>
+        <h2>JSON retornado</h2>
+        <pre id="output">{}</pre>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
