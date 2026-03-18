@@ -26,6 +26,8 @@ Pipeline capaz de:
 
 ## 🏗️ Estrutura do projeto
 
+> Estrutura resumida (alguns arquivos auxiliares foram omitidos para manter foco na visão geral).
+
 ```
 edgeAI-POC/
 ├─ edge/
@@ -50,6 +52,7 @@ edgeAI-POC/
 │  ├─ app.js
 │  └─ styles.css
 ├─ scripts/
+│  ├─ run_poc.ps1
 │  ├─ run_edge.ps1
 │  ├─ run_backend.ps1
 │  └─ run_interface.ps1
@@ -101,7 +104,7 @@ edgeAI-POC/
 
 ### Cloud
 - FastAPI
-- OpenAI API (ou equivalente)
+- OpenAI API (opcional; com fallback local por regras quando não configurada)
 - PostgreSQL
 - S3 (na PoC local: MinIO compatível S3)
 
@@ -133,7 +136,7 @@ docker compose up -d
 
 ### 2) Configurar variáveis
 - Copie `.env.example` para `.env`
-- Ajuste `OPENAI_API_KEY`
+- Ajuste `OPENAI_API_KEY` (opcional para modo híbrido com LLM; sem chave, o backend usa análise local por regras)
 
 ### Pré-requisito OCR no Windows
 - Instale o Tesseract OCR (ex.: `winget install UB-Mannheim.TesseractOCR`)
@@ -181,7 +184,7 @@ Na interface, você pode usar dois fluxos:
 ## 🔁 Fallback offline → online
 
 - `--offline`: extrai e estrutura localmente sem backend
-- Sem `--offline`: envia para backend, aplica LLM e retorna análise completa
+- Sem `--offline`: envia para backend, aplica LLM (ou fallback local por regras se não houver chave/API) e retorna análise
 - Se backend/rede estiver indisponível, o payload vai para `data/pending_sync` (fila local)
 - Use `-SyncPending` para reenviar pendências quando voltar online
 - Backend possui cache por hash de conteúdo para evitar reprocessamento
