@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
+from .config import settings
 from .edge_processor import process_document
 from .llm import analyze_with_llm
 from .logger import configure_logging
@@ -23,6 +24,11 @@ LEGACY_RISK_MESSAGES = {
     "Análise jurídica avançada indisponível no modo offline/cloud desativado.",
 }
 
+LOCAL_FALLBACK_MARKERS = {
+    "Análise local por regras concluída.",
+    "Esta análise foi feita localmente, sem LLM",
+}
+
 app = FastAPI(title="EdgeAI Legal Backend", version="0.1.0")
 
 app.add_middleware(
@@ -33,17 +39,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.on_event("startup")
 def startup_event() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_bucket_exists()
 
-
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
-
 
 def _run_analysis(payload: StructuredInput, db: Session) -> AnalysisOutput:
     structured_json = payload.model_dump()
@@ -53,7 +56,14 @@ def _run_analysis(payload: StructuredInput, db: Session) -> AnalysisOutput:
     if cached:
         cached_risks = cached.risks_json.get("risks", []) if isinstance(cached.risks_json, dict) else []
         has_legacy_risk = any(risk in LEGACY_RISK_MESSAGES for risk in cached_risks)
-        if not has_legacy_risk:
+        cached_summary = cached.summary or ""
+        cached_explanation = cached.simplified_explanation or ""
+        is_local_fallback_cached = any(marker in cached_summary for marker in LOCAL_FALLBACK_MARKERS) or any(
+            marker in cached_explanation for marker in LOCAL_FALLBACK_MARKERS
+        )
+        should_reprocess_local_fallback = bool(settings.openai_api_key and payload.raw_text and is_local_fallback_cached)
+
+        if not has_legacy_risk and not should_reprocess_local_fallback:
             return AnalysisOutput(
                 document_name=cached.document_name,
                 summary=cached.summary,
@@ -63,7 +73,7 @@ def _run_analysis(payload: StructuredInput, db: Session) -> AnalysisOutput:
                 cache_hit=True,
             )
 
-        logger.info("Cache legado detectado para %s; reprocessando análise.", payload.document_name)
+        logger.info("Cache desatualizado/local detectado para %s; reprocessando análise.", payload.document_name)
 
     llm_result = analyze_with_llm(structured_json)
 
