@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EDGE_CACHE_DIR = PROJECT_ROOT / "data" / "edge_cache"
 PENDING_DIR = PROJECT_ROOT / "data" / "pending_sync"
+LOCAL_FALLBACK_MARKERS = (
+    "Análise local por regras concluída.",
+    "Esta análise foi feita localmente, sem LLM",
+)
+
+
+def _is_local_fallback_result(result: dict) -> bool:
+    summary = str(result.get("summary", ""))
+    simplified_explanation = str(result.get("simplified_explanation", ""))
+    return any(marker in summary or marker in simplified_explanation for marker in LOCAL_FALLBACK_MARKERS)
 
 
 def process_document(file_path: Path) -> StructuredData:
@@ -54,8 +64,11 @@ def save_structured_json(payload: StructuredData, out_path: Path) -> None:
 def send_to_backend(payload: StructuredData) -> dict:
     cached = load_cache(EDGE_CACHE_DIR, payload.cleaned_text)
     if cached:
-        logger.info("Cache local do edge encontrado para o documento")
-        return {**cached, "edge_cache_hit": True}
+        if _is_local_fallback_result(cached):
+            logger.info("Cache local do edge contém fallback local; ignorando para reprocessar no backend")
+        else:
+            logger.info("Cache local do edge encontrado para o documento")
+            return {**cached, "edge_cache_hit": True}
 
     endpoint = f"{settings.backend_url.rstrip('/')}/api/analyze"
     try:
@@ -66,7 +79,10 @@ def send_to_backend(payload: StructuredData) -> dict:
         )
         response.raise_for_status()
         result = response.json()
-        save_cache(EDGE_CACHE_DIR, payload.cleaned_text, result)
+        if not _is_local_fallback_result(result) and not result.get("queued_for_sync", False):
+            save_cache(EDGE_CACHE_DIR, payload.cleaned_text, result)
+        else:
+            logger.info("Resposta recebida sem cache local (fallback local ou fila de sincronização)")
         logger.info("Resposta recebida do backend")
         return result
     except Exception as exc:
