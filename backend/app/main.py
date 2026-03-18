@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 LEGACY_RISK_MESSAGES = {
     "Análise jurídica avançada indisponível no modo offline/cloud desativado.",
+    "Resposta do LLM em formato não estruturado; usando riscos locais por regras.",
+    "A LLM retornou resposta parcial; valide manualmente os principais pontos do documento.",
 }
 
 LOCAL_FALLBACK_MARKERS = {
@@ -54,6 +56,12 @@ def _run_analysis(payload: StructuredInput, db: Session) -> AnalysisOutput:
 
     cached = db.query(DocumentAnalysis).filter(DocumentAnalysis.document_hash == document_hash).first()
     if cached:
+        provider = (settings.llm_provider or "local").strip().lower()
+        llm_enabled = (
+            (provider == "openai" and bool(settings.openai_api_key))
+            or (provider == "gemini" and bool(settings.gemini_api_key))
+        )
+
         cached_risks = cached.risks_json.get("risks", []) if isinstance(cached.risks_json, dict) else []
         has_legacy_risk = any(risk in LEGACY_RISK_MESSAGES for risk in cached_risks)
         cached_summary = cached.summary or ""
@@ -61,9 +69,10 @@ def _run_analysis(payload: StructuredInput, db: Session) -> AnalysisOutput:
         is_local_fallback_cached = any(marker in cached_summary for marker in LOCAL_FALLBACK_MARKERS) or any(
             marker in cached_explanation for marker in LOCAL_FALLBACK_MARKERS
         )
-        should_reprocess_local_fallback = bool(settings.openai_api_key and payload.raw_text and is_local_fallback_cached)
+        should_reprocess_local_fallback = bool(llm_enabled and payload.raw_text and is_local_fallback_cached)
+        should_reprocess_legacy = bool(llm_enabled and has_legacy_risk)
 
-        if not has_legacy_risk and not should_reprocess_local_fallback:
+        if not should_reprocess_legacy and not should_reprocess_local_fallback:
             return AnalysisOutput(
                 document_name=cached.document_name,
                 summary=cached.summary,
