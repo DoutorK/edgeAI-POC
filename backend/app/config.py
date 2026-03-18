@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
+    tesseract_cmd: str = ""
 
     class Config:
         env_file = ".env"
