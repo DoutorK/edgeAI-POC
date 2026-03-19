@@ -50,6 +50,14 @@ def startup_event() -> None:
 def health() -> dict:
     return {"status": "ok"}
 
+
+@app.post("/api/cache/clear")
+def clear_cache(db: Session = Depends(get_db)) -> dict:
+    deleted = db.query(DocumentAnalysis).delete(synchronize_session=False)
+    db.commit()
+    logger.info("Cache do banco limpo. Registros removidos: %s", deleted)
+    return {"status": "ok", "deleted": deleted}
+
 def _run_analysis(payload: StructuredInput, db: Session) -> AnalysisOutput:
     structured_json = payload.model_dump()
     document_hash = hashlib.sha256(payload.cleaned_text.encode("utf-8")).hexdigest()
