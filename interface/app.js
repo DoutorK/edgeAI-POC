@@ -1,9 +1,7 @@
 const output = document.getElementById('output');
-const jsonInput = document.getElementById('jsonInput');
-const analyzeBtn = document.getElementById('analyzeBtn');
 const processDocBtn = document.getElementById('processDocBtn');
+const clearCacheBtn = document.getElementById('clearCacheBtn');
 const docFile = document.getElementById('docFile');
-const jsonFile = document.getElementById('jsonFile');
 const summaryOutput = document.getElementById('summaryOutput');
 const risksOutput = document.getElementById('risksOutput');
 const simpleOutput = document.getElementById('simpleOutput');
@@ -27,61 +25,9 @@ function renderResult(result) {
     }
   }
 
-  if (result.structured_json) {
-    jsonInput.value = JSON.stringify(result.structured_json, null, 2);
-  }
-
   output.textContent = JSON.stringify(result, null, 2);
   statusEl.textContent = result.cache_hit ? 'Concluído (cache backend).' : 'Concluído.';
 }
-
-jsonFile.addEventListener('change', async (event) => {
-  const [file] = event.target.files;
-  if (!file) return;
-
-  try {
-    const content = await file.text();
-    const parsed = JSON.parse(content);
-    const structured = parsed.structured_data || parsed;
-    jsonInput.value = JSON.stringify(structured, null, 2);
-    statusEl.textContent = 'JSON carregado com sucesso.';
-  } catch (error) {
-    statusEl.textContent = 'Falha ao ler arquivo JSON.';
-  }
-});
-
-analyzeBtn.addEventListener('click', async () => {
-  output.textContent = 'Processando...';
-  statusEl.textContent = 'Enviando para backend...';
-
-  let payload;
-  try {
-    payload = JSON.parse(jsonInput.value);
-  } catch (error) {
-    output.textContent = 'JSON inválido. Verifique o conteúdo colado.';
-    statusEl.textContent = 'JSON inválido.';
-    return;
-  }
-
-  try {
-    const response = await fetch('http://localhost:8000/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(body || 'Falha na chamada da API');
-    }
-
-    const result = await response.json();
-    renderResult(result);
-  } catch (error) {
-    output.textContent = `Erro: ${error.message}`;
-    statusEl.textContent = 'Erro na integração com backend.';
-  }
-});
 
 processDocBtn.addEventListener('click', async () => {
   const [file] = docFile.files;
@@ -112,5 +58,30 @@ processDocBtn.addEventListener('click', async () => {
   } catch (error) {
     output.textContent = `Erro: ${error.message}`;
     statusEl.textContent = 'Erro no processamento direto de documento.';
+  }
+});
+
+clearCacheBtn.addEventListener('click', async () => {
+  const confirmed = window.confirm('Deseja limpar o cache do banco de dados? Esta ação é para testes.');
+  if (!confirmed) return;
+
+  statusEl.textContent = 'Limpando cache do backend...';
+
+  try {
+    const response = await fetch('http://localhost:8000/api/cache/clear', {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(body || 'Falha ao limpar cache');
+    }
+
+    const result = await response.json();
+    output.textContent = JSON.stringify(result, null, 2);
+    statusEl.textContent = `Cache limpo. Registros removidos: ${result.deleted ?? 0}.`;
+  } catch (error) {
+    output.textContent = `Erro: ${error.message}`;
+    statusEl.textContent = 'Erro ao limpar cache do backend.';
   }
 });
