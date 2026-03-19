@@ -20,12 +20,12 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
-    gemini_max_output_tokens: int = 512
-    llm_cleaned_text_max_chars: int = 2500
+    gemini_max_output_tokens: int = 1200
+    llm_cleaned_text_max_chars: int = 5000
     llm_max_items_per_list: int = 10
     llm_max_item_chars: int = 70
-    llm_max_snippets: int = 4
-    llm_max_snippets_total_chars: int = 700
+    llm_max_snippets: int = 8
+    llm_max_snippets_total_chars: int = 1800
     tesseract_cmd: str = ""
 
     class Config:
